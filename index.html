@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Contagem de Estoque · Raiar Orgânicos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --marinho:#254D69;
+    --marinho-d:#1a3850;
+    --azul:#5CDCF2;
+    --amarelo:#FFD043;
+    --rosa:#FFA385;
+    --terra:#F2A15E;
+    --bg:#F4F6F7;
+    --card:#FFFFFF;
+    --ink:#1E2B33;
+    --muted:#6B7B84;
+    --line:#E1E7EA;
+    --danger:#D96A5C;
+    --ok:#3E8E63;
+    --radius:14px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:'Trebuchet MS','Segoe UI',Arial,sans-serif;
+    background:var(--bg);
+    color:var(--ink);
+    padding-bottom:96px;
+    min-height:100vh;
+  }
+  header{
+    background:linear-gradient(135deg,var(--marinho) 0%,var(--marinho-d) 100%);
+    color:#fff;
+    padding:18px 16px 22px;
+    border-bottom-left-radius:20px;
+    border-bottom-right-radius:20px;
+    box-shadow:0 4px 14px rgba(0,0,0,.15);
+  }
+  header .eyebrow{
+    font-size:11px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--azul);
+    font-weight:700;
+    margin-bottom:2px;
+  }
+  header h1{
+    margin:0;
+    font-size:20px;
+    font-weight:700;
+  }
+  .wrap{ padding:14px; max-width:640px; margin:0 auto; }
+  .card{
+    background:var(--card);
+    border-radius:var(--radius);
+    padding:14px;
+    margin-bottom:12px;
+    box-shadow:0 1px 3px rgba(30,43,51,.08);
+    border:1px solid var(--line);
+  }
+  .card h2{
+    font-size:13px;
+    text-transform:uppercase;
+    letter-spacing:.6px;
+    color:var(--marinho);
+    margin:0 0 10px;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .row2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--muted);
+    margin-bottom:4px;
+    font-weight:600;
+  }
+  select, input[type="text"], input[type="number"], input[type="date"]{
+    width:100%;
+    padding:11px 10px;
+    border-radius:10px;
+    border:1.5px solid var(--line);
+    font-size:16px;
+    font-family:inherit;
+    background:#fff;
+    color:var(--ink);
+    margin-bottom:10px;
+  }
+  select:focus, input:focus{
+    outline:none;
+    border-color:var(--marinho);
+  }
+  .field{position:relative;}
+  .sku-results{
+    position:absolute;
+    left:0; right:0; top:100%;
+    background:#fff;
+    border:1.5px solid var(--line);
+    border-top:none;
+    border-radius:0 0 10px 10px;
+    max-height:260px;
+    overflow-y:auto;
+    z-index:20;
+    box-shadow:0 8px 16px rgba(0,0,0,.12);
+    display:none;
+  }
+  .sku-results.show{ display:block; }
+  .sku-opt{
+    padding:10px 12px;
+    font-size:14px;
+    border-bottom:1px solid var(--line);
+    cursor:pointer;
+    line-height:1.3;
+  }
+  .sku-opt:last-child{ border-bottom:none; }
+  .sku-opt:active, .sku-opt.hover{ background:#EAF6FA; }
+  .sku-opt .cod{ font-weight:700; color:var(--marinho); }
+  .tag{
+    display:inline-block;
+    font-size:11px;
+    font-weight:700;
+    padding:3px 8px;
+    border-radius:100px;
+    background:#EAF6FA;
+    color:var(--marinho);
+    margin-top:2px;
+  }
+  .selected-sku{
+    display:none;
+    background:#EAF6FA;
+    border:1.5px solid var(--azul);
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:10px;
+    font-size:13px;
+  }
+  .selected-sku.show{ display:block; }
+  .selected-sku .name{ font-weight:700; color:var(--marinho-d); }
+  .selected-sku .clear-sku{
+    float:right; color:var(--danger); font-weight:700; cursor:pointer; font-size:12px;
+  }
+  .btn{
+    display:block;
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    font-size:15px;
+    font-weight:700;
+    font-family:inherit;
+    cursor:pointer;
+    text-align:center;
+  }
+  .btn-primary{ background:var(--marinho); color:#fff; }
+  .btn-primary:active{ background:var(--marinho-d); }
+  .btn-amarelo{ background:var(--amarelo); color:var(--marinho-d); }
+  .btn-outline{ background:#fff; color:var(--marinho); border:1.5px solid var(--marinho); }
+  .btn-ghost{ background:transparent; color:var(--danger); font-weight:600; font-size:13px; padding:6px; }
+  .item{
+    background:#fff;
+    border:1px solid var(--line);
+    border-left:5px solid var(--azul);
+    border-radius:10px;
+    padding:10px 12px;
+    margin-bottom:8px;
+    position:relative;
+  }
+  .item.avariada{ border-left-color:var(--rosa); }
+  .item .top{ display:flex; justify-content:space-between; align-items:flex-start; gap:8px; }
+  .item .desc{ font-size:13.5px; font-weight:700; color:var(--marinho-d); line-height:1.3; }
+  .item .meta{ font-size:12px; color:var(--muted); margin-top:3px; }
+  .item .qtd{ font-size:20px; font-weight:800; color:var(--marinho); white-space:nowrap; }
+  .item .del{ color:var(--danger); font-size:18px; cursor:pointer; padding:2px 6px; line-height:1; }
+  .empty{
+    text-align:center; color:var(--muted); font-size:13px; padding:24px 10px;
+  }
+  .footer-bar{
+    position:fixed; bottom:0; left:0; right:0;
+    background:#fff;
+    border-top:1px solid var(--line);
+    padding:10px 14px calc(10px + env(safe-area-inset-bottom));
+    box-shadow:0 -4px 14px rgba(0,0,0,.08);
+  }
+  .footer-inner{ max-width:640px; margin:0 auto; }
+  .totals{
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:13px; color:var(--muted); margin-bottom:8px;
+  }
+  .totals b{ color:var(--ink); font-size:15px; }
+  .export-row{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .badge-count{
+    background:var(--terra); color:#fff; border-radius:100px;
+    font-size:11px; padding:1px 8px; margin-left:6px; font-weight:700;
+  }
+  .toast{
+    position:fixed; top:14px; left:50%; transform:translateX(-50%);
+    background:var(--marinho-d); color:#fff; padding:10px 18px;
+    border-radius:100px; font-size:13px; font-weight:600;
+    box-shadow:0 6px 16px rgba(0,0,0,.2);
+    z-index:100; opacity:0; pointer-events:none; transition:opacity .25s, transform .25s;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(4px); }
+  .small-note{ font-size:11.5px; color:var(--muted); margin-top:-4px; margin-bottom:8px; }
+  .icon-btn-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .icon-btn-row .btn{ flex:1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+    <div>
+      <div class="eyebrow">Raiar Orgânicos · Operações</div>
+      <h1>Contagem de Estoque</h1>
+    </div>
+    <button id="clearAll" title="Limpar contagem e começar novo inventário" style="background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.3); color:#fff; border-radius:10px; padding:8px 10px; font-size:11px; font-weight:700; font-family:inherit; cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:2px; line-height:1;">
+      <span style="font-size:16px;">↺</span>
+      Novo
+    </button>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="card">
+    <h2>📋 Dados da Contagem</h2>
+    <div class="row2">
+      <div>
+        <label>Data Inventário</label>
+        <input type="date" id="dataInventario">
+      </div>
+      <div>
+        <label>Origem</label>
+        <select id="origem"></select>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>➕ Adicionar Item</h2>
+
+    <label>Tipo Produto (buscar por código ou descrição)</label>
+    <div class="field">
+      <input type="text" id="skuSearch" placeholder="Ex: 3829 ou GRANDE BLISTER" autocomplete="off">
+      <div class="sku-results" id="skuResults"></div>
+    </div>
+
+    <div class="selected-sku" id="selectedSkuBox">
+      <span class="clear-sku" id="clearSku">trocar ✕</span>
+      <div class="name" id="selectedSkuName"></div>
+      <span class="tag" id="selectedSkuTamanho"></span>
+    </div>
+
+    <label>Quantidade (Cxs)</label>
+    <input type="number" id="qtdCxs" min="0" inputmode="numeric" placeholder="0">
+
+    <div class="row2">
+      <div>
+        <label>Lote (apenas número)</label>
+        <input type="number" id="loteNumero" min="0" inputmode="numeric" placeholder="Ex: 26">
+      </div>
+      <div>
+        <label>Data Postura</label>
+        <input type="date" id="dataPostura">
+      </div>
+    </div>
+    <div class="small-note" id="lotePreview">Lote gerado: —</div>
+
+    <button class="btn btn-primary" id="addItemBtn">Adicionar à contagem</button>
+  </div>
+
+  <div class="card">
+    <h2>📦 Itens contados <span class="badge-count" id="itemCount">0</span></h2>
+    <div id="itemsList"><div class="empty">Nenhum item adicionado ainda.</div></div>
+  </div>
+
+</div>
+
+<div class="footer-bar">
+  <div class="footer-inner">
+    <div class="totals">
+      <span>Total de caixas contadas</span>
+      <b id="totalCxs">0</b>
+    </div>
+    <div class="export-row">
+      <button class="btn btn-amarelo" id="exportExcel">⬇📲 Excel</button>
+      <button class="btn btn-outline" id="exportPdf">⬇📲 PDF</button>
+    </div>
+    <div class="small-note" style="text-align:center; margin-top:2px;">Baixa o arquivo e já abre o WhatsApp pra você enviar</div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PRODUTOS = [
+  {cod:2076, desc:'OVO (CAIXA 360 UN)', tam:'GRANDE'},
+  {cod:3596, desc:'OVOS JUMBO - BANDEJA 30 (CAIXA 240 UN)', tam:'JUMBO'},
+  {cod:3606, desc:'OVOS PEQUENOS - BANDEJA 30 (CAIXA 240 UN)', tam:'MÉDIO'},
+  {cod:3671, desc:'OVOS GRANDES - BANDEJA 30 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:3825, desc:'OVOS GRANDES - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:3826, desc:'OVOS GRANDES - BANDEJA 30 (CAIXA 360 UN)', tam:'GRANDE'},
+  {cod:3827, desc:'OVOS JUMBO - BANDEJA 30 (CAIXA 360 UN)', tam:'JUMBO'},
+  {cod:3828, desc:'OVOS PEQUENOS - BANDEJA 30 (CAIXA 360 UN)', tam:'MÉDIO'},
+  {cod:3829, desc:'OVOS GRANDES - ESTOJO 06 (CAIXA 90 UN)', tam:'GRANDE'},
+  {cod:3930, desc:'OVO VERMELHO GD ORGANICO C10 RAIAR', tam:'GRANDE'},
+  {cod:3938, desc:'OVO CAIPIRA ORGÂNICO COM 10', tam:'GRANDE'},
+  {cod:4718, desc:'OVO ORGÂNICOS (CAIXA 360 UN)', tam:'GRANDE'},
+  {cod:4998, desc:'OVO CAIPIRA ORGÂNICO RAIAR - JUMBO - ESTOJO 10 (CAIXA 240)', tam:'JUMBO'},
+  {cod:5000, desc:'OVO CAIPIRA ORGÂNICO RAIAR - PEQUENO - ESTOJO 10 (CAIXA 240 UN)', tam:'MÉDIO'},
+  {cod:5002, desc:'OVO CAIPIRA ORGÂNICO RAIAR - MÉDIO - ESTOJO 10 (CAIXA 240 UN)', tam:'MÉDIO'},
+  {cod:5004, desc:'OVO CAIPIRA ORGÂNICO RAIAR - MÉDIO - BANDEJA 20 (CAIXA 240 UN)', tam:'MÉDIO'},
+  {cod:5006, desc:'OVO CAIPIRA ORGÂNICO RAIAR - MÉDIO - BANDEJA 30 (CAIXA 240 UN)', tam:'MÉDIO'},
+  {cod:5007, desc:'OVO CAIPIRA ORGÂNICO RAIAR - MÉDIO - BANDEJA 30 (CAIXA 360 UN)', tam:'MÉDIO'},
+  {cod:5008, desc:'OVO CAIPIRA ORGÂNICO RAIAR - GRANDE - BANDEJA 20 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:5164, desc:'OVOS BRANCOS JUMBO KATAYAMA 10 UN. - CX C/ 24 ESTOJO.', tam:'MÉDIO'},
+  {cod:5184, desc:'OVO CAIPIRA ORGÂNICO NHT - GRANDE - ESTOJO 10 UN', tam:'GRANDE'},
+  {cod:5447, desc:'OVO CAIPIRA ORGÂNICO MAMBO - GRANDE - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:5469, desc:'OVO CAIPIRA ORGÂNICO RAIAR - GRANDE - BDJ/POLPA 20 (CAIXA 360 UN)', tam:'GRANDE'},
+  {cod:5614, desc:'OVO CAIPIRA ORGÂNICO SAM’S - GRANDE - BANDEJA 20 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:6059, desc:'OVO CAIPIRA ORGÂNICO RAIZS- GRANDE - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:6295, desc:'OVO CAIPIRA ORGÂNICO TAEQ- GRANDE - ESTOJO 10 (CAIXA 120 UN)', tam:'GRANDE'},
+  {cod:6356, desc:'OVO CAIPIRA ORGÂNICO HNT - GRANDE - BLISTER 20 UN (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:8496, desc:'OVO CAIPIRA ORGÂNICO RAIAR - PEQUENO - BLISTER 20 (CAIXA 240 UN)', tam:'MÉDIO'},
+  {cod:9876, desc:'OVO CAIPIRA ORGÂNICO TAEQ- GRANDE - BLISTER 20 UN (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:10043, desc:'OVO CAIPIRA ORGÂNICO OBA BEM QUERER- GRANDE - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:10044, desc:'OVO CAIPIRA ORGÂNICO OBA BEM QUERER- GRANDE - BLISTER 20 UN (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:10775, desc:'OVO CAIPIRA ORGÂNICO BENASSI - GRANDE - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:10776, desc:'OVO CAIPIRA ORGÂNICO CARREFOUR BIO - GRANDE - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:10777, desc:'OVO CAIPIRA ORGÂNICO ST MARCHE - GRANDE - ESTOJO 10 (CAIXA 240 UN)', tam:'GRANDE'},
+  {cod:11744, desc:'OVO CAIPIRA ORGÂNICO RAIAR - GRANDE - BLISTER 30 - CX 240 UN', tam:'GRANDE'},
+  {cod:11745, desc:'OVO CAIPIRA ORGÂNICO RAIAR - MÉDIO- BLISTER 30 - CX 240 UN', tam:'MÉDIO'},
+  {cod:11794, desc:'OVO CAIPIRA ORGANICO BENASSI - GRANDE - BLISTER 20 - CX 240 UN', tam:'GRANDE'},
+  {cod:12203, desc:'OVO CAIPIRA ORGANICO RAIAR - GRANDE - ESTOJO 18 (CAIXA 270 UN)', tam:'GRANDE'},
+  {cod:12208, desc:'OVO CAIPIRA ORGANICO SITIO VERDE - GRANDE - BLISTER 20 - CX 240 UN', tam:'GRANDE'}
+];
+const ORIGENS = ["CD - SP","FAZENDA"];
+
+function produtoLabel(p){ return `${p.cod}-${p.desc}`; }
+
+let state = { origem:"CD - SP", dataInventario:"", items:[] };
+let selectedProduto = null;
+
+const $ = id => document.getElementById(id);
+
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 1800);
+}
+
+function todayISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+async function loadDraft(){
+  try{
+    const raw = localStorage.getItem('inventario_draft');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      state = Object.assign(state, parsed);
+    }
+  }catch(e){ /* no draft yet */ }
+  if(!state.dataInventario) state.dataInventario = todayISO();
+  if(!state.origem) state.origem = "CD - SP";
+}
+
+async function saveDraft(){
+  try{
+    localStorage.setItem('inventario_draft', JSON.stringify(state));
+  }catch(e){ console.error('Falha ao salvar rascunho', e); }
+}
+
+function renderOrigem(){
+  const sel = $("origem");
+  sel.innerHTML = ORIGENS.map(o=>`<option value="${o}" ${o===state.origem?'selected':''}>${o}</option>`).join('');
+  sel.onchange = ()=>{ state.origem = sel.value; saveDraft(); };
+}
+
+function renderSkuResults(query){
+  const box = $("skuResults");
+  const q = query.trim().toUpperCase();
+  if(!q){ box.classList.remove('show'); box.innerHTML=''; return; }
+  const matches = PRODUTOS
+    .map((p,idx)=>({p,idx}))
+    .filter(({p}) => (`${p.cod} ${p.desc}`).toUpperCase().includes(q))
+    .slice(0,30);
+  if(matches.length===0){
+    box.innerHTML = `<div class="sku-opt" style="color:var(--muted)">Nenhum SKU encontrado</div>`;
+    box.classList.add('show');
+    return;
+  }
+  box.innerHTML = matches.map(({p,idx})=>{
+    return `<div class="sku-opt" data-idx="${idx}"><span class="cod">${p.cod}</span> — ${p.desc}</div>`;
+  }).join('');
+  box.classList.add('show');
+  box.querySelectorAll('.sku-opt[data-idx]').forEach(el=>{
+    el.addEventListener('click', ()=>selectProduto(PRODUTOS[parseInt(el.getAttribute('data-idx'))]));
+  });
+}
+
+function selectProduto(p){
+  selectedProduto = p;
+  $("skuSearch").value = "";
+  $("skuResults").classList.remove('show');
+  $("selectedSkuName").textContent = produtoLabel(p);
+  $("selectedSkuTamanho").textContent = p.tam;
+  $("selectedSkuBox").classList.add('show');
+  $("qtdCxs").focus();
+}
+
+function clearSelectedProduto(){
+  selectedProduto = null;
+  $("selectedSkuBox").classList.remove('show');
+  $("skuSearch").value = "";
+}
+
+function buildLote(numero, dataPosturaISO){
+  if(!numero && numero!==0) return "";
+  if(!dataPosturaISO) return "";
+  const [y,m,d] = dataPosturaISO.split('-');
+  const yy = y.slice(2);
+  return `L${numero}.XX.${d}.${m}.${yy}`;
+}
+
+function updateLotePreview(){
+  const num = $("loteNumero").value;
+  const dp = $("dataPostura").value;
+  const lote = buildLote(num, dp);
+  $("lotePreview").textContent = "Lote gerado: " + (lote || "—");
+}
+
+function renderItems(){
+  const list = $("itemsList");
+  if(state.items.length===0){
+    list.innerHTML = '<div class="empty">Nenhum item adicionado ainda.</div>';
+  } else {
+    list.innerHTML = state.items.map((it,idx)=>{
+      return `<div class="item">
+        <div class="top">
+          <div>
+            <div class="desc">${it.produto}</div>
+            <div class="meta">${it.dataInventario.split('-').reverse().join('/')} · ${it.origem} · Lote ${it.lote || '—'} · ${it.tamanho}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="qtd">${it.qtdCxs}</div>
+            <div class="del" data-idx="${idx}">✕</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+    list.querySelectorAll('.del').forEach(el=>{
+      el.addEventListener('click', ()=>{
+        const i = parseInt(el.getAttribute('data-idx'));
+        state.items.splice(i,1);
+        saveDraft();
+        renderAll();
+      });
+    });
+  }
+  $("itemCount").textContent = state.items.length;
+  const total = state.items.reduce((s,it)=>s+(Number(it.qtdCxs)||0),0);
+  $("totalCxs").textContent = total;
+}
+
+function renderAll(){
+  renderOrigem();
+  $("dataInventario").value = state.dataInventario;
+  renderItems();
+}
+
+function addItem(){
+  if(!selectedProduto){ toast("Selecione um Tipo Produto na busca"); return; }
+  const qtdCxs = Number($("qtdCxs").value);
+  if(!qtdCxs || qtdCxs<=0){ toast("Informe a quantidade de caixas"); return; }
+  const loteNumero = $("loteNumero").value.trim();
+  const dataPostura = $("dataPostura").value;
+  if(!loteNumero || !dataPostura){ toast("Informe o número do lote e a data de postura"); return; }
+  const lote = buildLote(loteNumero, dataPostura);
+  const produto = produtoLabel(selectedProduto);
+  const tamanho = selectedProduto.tam;
+  const dataInventario = state.dataInventario;
+
+  const dupIdx = state.items.findIndex(it=>it.produto===produto && it.origem===state.origem && it.lote===lote && it.dataInventario===dataInventario);
+  if(dupIdx>=0){
+    state.items[dupIdx].qtdCxs = Number(state.items[dupIdx].qtdCxs) + qtdCxs;
+    toast("Item já existia — quantidade somada");
+  } else {
+    state.items.push({ dataInventario, origem: state.origem, produto, tamanho, qtdCxs, lote });
+    toast("Item adicionado");
+  }
+
+  clearSelectedProduto();
+  $("qtdCxs").value = "";
+  $("loteNumero").value = "";
+  $("dataPostura").value = "";
+  updateLotePreview();
+  saveDraft();
+  renderAll();
+  $("skuSearch").focus();
+}
+
+function buildAOA(){
+  const header = ["Data Inventário","Origem","Tipo Produto","Tamanho","Quantidade (Cxs)","Lote"];
+  const rows = state.items.map(it=>[it.dataInventario.split('-').reverse().join('/'), it.origem, it.produto, it.tamanho, it.qtdCxs, it.lote]);
+  return [header, ...rows];
+}
+
+function buildWorkbook(){
+  const aoa = buildAOA();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:14},{wch:9},{wch:48},{wch:9},{wch:14},{wch:18}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Contagem");
+  return wb;
+}
+
+function excelFileName(){
+  return `contagem_estoque_${state.origem.replace(/\s+/g,'')}_${state.dataInventario}.xlsx`;
+}
+
+function openWhatsAppWith(fileLabel){
+  const dataStr = state.dataInventario.split('-').reverse().join('/');
+  const msg = `Contagem de estoque — ${state.origem} — ${dataStr}`;
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+  window.open(waUrl, '_blank');
+}
+
+async function shareOrDownload(file, fileLabel, saveFn){
+  let canShare = false;
+  try{ canShare = !!(navigator.canShare && navigator.canShare({ files:[file] })); }catch(e){}
+
+  if(navigator.share && canShare){
+    try{
+      await navigator.share({ files:[file], title:'Contagem de Estoque' });
+      return;
+    }catch(err){
+      if(err.name === 'AbortError') return;
+    }
+  }
+  saveFn();
+  toast(`${fileLabel} baixado — abrindo WhatsApp...`);
+  openWhatsAppWith(fileLabel);
+}
+
+function exportExcel(){
+  if(state.items.length===0){ toast("Adicione itens antes de exportar"); return; }
+  const wb = buildWorkbook();
+  const buffer = XLSX.write(wb, { bookType:'xlsx', type:'array' });
+  const blob = new Blob([buffer], { type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  const file = new File([blob], excelFileName(), { type: blob.type });
+  shareOrDownload(file, "Excel", ()=>XLSX.writeFile(wb, excelFileName()));
+}
+
+
+
+function pdfFileName(){
+  return `contagem_estoque_${state.origem.replace(/\s+/g,'')}_${state.dataInventario}.pdf`;
+}
+
+function buildPdfDoc(){
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation:'landscape', unit:'pt' });
+
+  doc.setFillColor(37,77,105);
+  doc.rect(0,0,842,50,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(16);
+  doc.text("Raiar Orgânicos — Contagem de Estoque", 24, 30);
+
+  doc.setTextColor(30,43,51);
+  doc.setFontSize(10);
+  const dataStr = state.dataInventario ? state.dataInventario.split('-').reverse().join('/') : '';
+  doc.text(`Origem: ${state.origem}      Data Inventário: ${dataStr}      Gerado em: ${new Date().toLocaleString('pt-BR')}`, 24, 66);
+
+  const totalCxs = state.items.reduce((s,it)=>s+(Number(it.qtdCxs)||0),0);
+
+  const body = state.items.map(it=>[
+    it.dataInventario.split('-').reverse().join('/'), it.origem, it.produto, it.tamanho, it.qtdCxs, it.lote||'—'
+  ]);
+
+  doc.autoTable({
+    startY: 80,
+    head: [["Data Inventário","Origem","Tipo Produto","Tamanho","Qtd (Cxs)","Lote"]],
+    body: body,
+    styles:{ fontSize:8.5, cellPadding:4 },
+    headStyles:{ fillColor:[37,77,105], textColor:255 },
+    alternateRowStyles:{ fillColor:[244,246,247] },
+    columnStyles:{ 2:{cellWidth:260} },
+    foot:[["","","","Total", totalCxs, ""]],
+    footStyles:{ fillColor:[255,208,67], textColor:[26,56,80], fontStyle:'bold' }
+  });
+
+  return doc;
+}
+
+function exportPdf(){
+  if(state.items.length===0){ toast("Adicione itens antes de exportar"); return; }
+  const doc = buildPdfDoc();
+  const blob = doc.output('blob');
+  const file = new File([blob], pdfFileName(), { type:'application/pdf' });
+  shareOrDownload(file, "PDF", ()=>doc.save(pdfFileName()));
+}
+
+$("skuSearch").addEventListener('input', e=>renderSkuResults(e.target.value));
+$("skuSearch").addEventListener('focus', e=>{ if(e.target.value) renderSkuResults(e.target.value); });
+document.addEventListener('click', e=>{
+  if(!e.target.closest('.field')) $("skuResults").classList.remove('show');
+});
+$("clearSku").addEventListener('click', clearSelectedProduto);
+$("dataInventario").addEventListener('change', e=>{ state.dataInventario = e.target.value; saveDraft(); });
+$("loteNumero").addEventListener('input', updateLotePreview);
+$("dataPostura").addEventListener('change', updateLotePreview);
+$("addItemBtn").addEventListener('click', addItem);
+$("exportExcel").addEventListener('click', exportExcel);
+$("exportPdf").addEventListener('click', exportPdf);
+$("clearAll").addEventListener('click', ()=>{
+  if(confirm("Isso vai apagar todos os itens contados nesta sessão. Confirma?")){
+    state = { origem: "CD - SP", dataInventario: todayISO(), items: [] };
+    saveDraft();
+    renderAll();
+    toast("Contagem reiniciada");
+  }
+});
+
+(async function init(){
+  await loadDraft();
+  renderAll();
+})();
+</script>
+</body>
+</html>
